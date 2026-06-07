@@ -8,7 +8,7 @@ import ProfilePage from "./pages/ProfilePage";
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
-
+import { useChatStore } from "./store/useChatStore";
 import { useEffect } from "react";
 
 import { Loader } from "lucide-react";
@@ -18,6 +18,17 @@ import ShareYourSmile from "./pages/ShareYourSmile";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
+
+  const { subscribeToMessages, unsubscribeFromMessages } = useChatStore();
+
+useEffect(() => {
+  if (authUser) {
+    subscribeToMessages();
+    return () => unsubscribeFromMessages();
+  }
+}, [authUser, subscribeToMessages, unsubscribeFromMessages]);
+
+  
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", "light");
   }, []);
