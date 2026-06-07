@@ -93,47 +93,51 @@ export const useChatStore = create((set, get) => ({
     socket.off("userStopTyping");
 
     socket.on("newMessage", (newMessage) => {
-      const { selectedUser } = get();
+  const { selectedUser, messages } = get();
 
-      const otherUserId =
-        newMessage.senderId === loggedInUserId
-          ? newMessage.receiverId
-          : newMessage.senderId;
+  const otherUserId =
+    newMessage.senderId === loggedInUserId
+      ? newMessage.receiverId
+      : newMessage.senderId;
 
-      const isCurrentChat =
-        selectedUser &&
-        (newMessage.senderId === selectedUser._id ||
-          newMessage.receiverId === selectedUser._id);
+  const isCurrentChat =
+    selectedUser &&
+    (newMessage.senderId === selectedUser._id ||
+      newMessage.receiverId === selectedUser._id);
 
-      if (isCurrentChat) {
-        set((state) => ({ messages: [...state.messages, newMessage] }));
-        // Auto mark as read if chat is open and message is incoming
-        if (newMessage.senderId !== loggedInUserId) {
-          axiosInstance.patch(`/messages/mark-as-read/${newMessage.senderId}`);
-        }
-      }
+  if (isCurrentChat) {
+    // ✅ Check if message already exists before adding
+    const alreadyExists = get().messages.some((m) => m._id === newMessage._id);
+    if (!alreadyExists) {
+      set((state) => ({ messages: [...state.messages, newMessage] }));
+    }
 
-      set((state) => ({
-        lastMessages: {
-          ...state.lastMessages,
-          [otherUserId]: newMessage,
-        },
-      }));
+    if (newMessage.senderId !== loggedInUserId) {
+      axiosInstance.patch(`/messages/mark-as-read/${newMessage.senderId}`);
+    }
+  }
 
-      if (
-        newMessage.receiverId === loggedInUserId &&
-        (!selectedUser || selectedUser._id !== newMessage.senderId)
-      ) {
-        set((state) => {
-          const updatedCounts = {
-            ...state.unreadCounts,
-            [newMessage.senderId]: (state.unreadCounts[newMessage.senderId] || 0) + 1,
-          };
-          saveUnreadCounts(updatedCounts);
-          return { unreadCounts: updatedCounts };
-        });
-      }
+  set((state) => ({
+    lastMessages: {
+      ...state.lastMessages,
+      [otherUserId]: newMessage,
+    },
+  }));
+
+  if (
+    newMessage.receiverId === loggedInUserId &&
+    (!selectedUser || selectedUser._id !== newMessage.senderId)
+  ) {
+    set((state) => {
+      const updatedCounts = {
+        ...state.unreadCounts,
+        [newMessage.senderId]: (state.unreadCounts[newMessage.senderId] || 0) + 1,
+      };
+      saveUnreadCounts(updatedCounts);
+      return { unreadCounts: updatedCounts };
     });
+  }
+});
 
     // When the other person sees our messages, mark them as read in local state
     socket.on("messageSeen", ({ by, from }) => {
